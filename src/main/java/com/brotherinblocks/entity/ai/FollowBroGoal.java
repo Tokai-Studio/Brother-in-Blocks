@@ -5,22 +5,26 @@ import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.player.Player;
 
 /**
- * El Bro sigue a su dueno manteniendo una distancia prudente.
+ * El Bro sigue a su dueno manteniendo una distancia prudente, como un
+ * companero de verdad (no timido ni pegado).
  *
- * v0.3.0:
- *  - Si estas lejos (> 10 bloques), camina hacia ti
- *  - Si te paras, el se detiene y te mira (no se te pega encima)
- *  - Nunca se acerca a menos de ~5 bloques (distancia prudente)
+ * v0.3.1:
+ *  - Se queda a ~3 bloques (cerquita, como un pana)
+ *  - Si te alejas mas de 6 bloques, te alcanza
+ *  - Si te alejas MUCHO, corre a alcanzarte (sin dudar)
+ *  - Recalcula la ruta cada 10 ticks (camina fluido, sin tirones)
  */
 public class FollowBroGoal extends Goal {
 
     private final BroEntity bro;
-    /** Velocidad a la que camina hacia el dueno */
+    /** Velocidad base a la que camina hacia el dueno */
     private final double speedModifier;
     /** Distancia minima: si esta mas cerca que esto, se queda quieto */
     private final double minDistance;
     /** Distancia maxima: si esta mas lejos que esto, empieza a caminar */
     private final double maxDistance;
+    /** Contador para no recalcular la ruta cada tick (rendimiento + fluidez) */
+    private int timeToRecalcPath;
 
     public FollowBroGoal(BroEntity bro, double speedModifier, double minDistance, double maxDistance) {
         this.bro = bro;
@@ -65,10 +69,24 @@ public class FollowBroGoal extends Goal {
         if (owner == null) {
             return;
         }
-        // Camina hacia el dueno
-        this.bro.getNavigation().moveTo(owner, this.speedModifier);
-        // Y lo mira mientras camina (como un companero real)
+
+        // Lo mira mientras camina (como un companero real)
         this.bro.getLookControl().setLookAt(owner, 10.0F, this.bro.getMaxHeadXRot());
+
+        // Recalcula la ruta solo cada 10 ticks (0.5 segundos)
+        if (--this.timeToRecalcPath <= 0) {
+            this.timeToRecalcPath = 10;
+
+            double distance = this.bro.distanceTo(owner);
+            double speed = this.speedModifier;
+
+            // Si esta MUY lejos, corre a alcanzarlo (nada de timidez)
+            if (distance > this.maxDistance * 2) {
+                speed = this.speedModifier * 1.5D;
+            }
+
+            this.bro.getNavigation().moveTo(owner, speed);
+        }
     }
 
     /** Cuando deja de perseguir, se detiene (no sigue caminando a lo loco) */

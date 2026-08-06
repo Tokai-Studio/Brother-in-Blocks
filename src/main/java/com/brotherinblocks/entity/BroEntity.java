@@ -60,9 +60,9 @@ public class BroEntity extends PathfinderMob {
      */
     @Override
     protected void registerGoals() {
-        // Sigue al dueno: camina si esta a mas de 8 bloques, se detiene a los 4
-        // (distancia prudente ~3-6 bloques, como en el diseno del MVP)
-        this.goalSelector.addGoal(1, new FollowBroGoal(this, 0.8D, 4.0D, 8.0D));
+        // Sigue al dueno: se queda a ~3 bloques (cerquita), y lo alcanza
+        // si se aleja mas de 6 bloques (nada de timidez)
+        this.goalSelector.addGoal(1, new FollowBroGoal(this, 1.0D, 3.0D, 6.0D));
         // Te mira cuando esta parado
         this.goalSelector.addGoal(2, new LookAtPlayerGoal(this, Player.class, 8.0F));
     }
