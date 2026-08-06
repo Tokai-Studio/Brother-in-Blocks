@@ -1,5 +1,7 @@
 package com.brotherinblocks.entity;
 
+import com.brotherinblocks.chat.ChatManager;
+import com.brotherinblocks.entity.ai.DefendBroGoal;
 import com.brotherinblocks.entity.ai.FollowBroGoal;
 import com.brotherinblocks.entity.ai.GatherBlockGoal;
 import net.minecraft.ChatFormatting;
@@ -23,6 +25,7 @@ import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.network.NetworkHooks;
@@ -37,6 +40,9 @@ import java.util.UUID;
  * v0.4.0: tiene inventario propio (27 slots), tala madera y pica piedra
  *         cerca de ti, recoge el botin, y tiene hambre (come solo si
  *         tiene comida en su inventario).
+ * v0.5.0: te defiende de los monstruos (prioriza a tu atacante, se retira
+ *         con poca vida).
+ * v1.0.0: te habla por el chat (saludo, reacciones, avisos) con anti-spam.
  */
 public class BroEntity extends PathfinderMob {
 
@@ -77,6 +83,18 @@ public class BroEntity extends PathfinderMob {
     /** Ticks en los que empezo la orden actual (para cancelarla si se atasca) */
     private long orderStartedAt = 0;
 
+    // ---- Sistema de chat (v1.0.0) ----
+    /** El "cerebro" de las frases del Bro (anti-spam, sin repetir) */
+    private final ChatManager chatManager = new ChatManager(this);
+    /** Ya saludo al jugador? (una vez por mundo) */
+    private boolean greeted = false;
+    /** Como estaba el cielo la ultima vez (para avisar al anochecer/amanecer) */
+    private boolean wasNight = false;
+    /** Ticks de juego del ultimo aviso de creeper */
+    private long lastCreeperWarnAt = 0;
+    /** Contador para no escanear creepers cada tick (rendimiento) */
+    private int creeperScanTimer = 0;
+
     public BroEntity(EntityType<? extends PathfinderMob> type, Level level) {
         super(type, level);
         // Nunca desaparece solo del mundo
@@ -102,6 +120,8 @@ public class BroEntity extends PathfinderMob {
      */
     @Override
     protected void registerGoals() {
+        // Prioridad 0: te defiende de los monstruos (lo mas importante)
+        this.goalSelector.addGoal(0, new DefendBroGoal(this));
         // Sigue al dueno: se queda a ~3 bloques (cerquita), y lo alcanza
         // si se aleja mas de 6 bloques (nada de timidez)
         this.goalSelector.addGoal(1, new FollowBroGoal(this, 1.0D, 3.0D, 6.0D));
@@ -134,6 +154,11 @@ public class BroEntity extends PathfinderMob {
     /** Devuelve el nivel de hambre actual (0-20) */
     public int getHunger() {
         return this.hunger;
+    }
+
+    /** Devuelve el sistema de chat del Bro (para que otros lo hagan hablar) */
+    public ChatManager getChatManager() {
+        return this.chatManager;
     }
 
     /**
@@ -351,6 +376,9 @@ public class BroEntity extends PathfinderMob {
                 this.askForWood();
             }
 
+            // Sistema de chat (v1.0.0)
+            this.updateChat();
+
             // No se pierde: si el dueno esta muy lejos (y en la MISMA dimension),
             // aparece cerca de el. Si esta en otra dimension, no se mueve.
             if (this.ownerUUID != null) {
@@ -363,6 +391,63 @@ public class BroEntity extends PathfinderMob {
                 }
             }
         }
+    }
+
+    /**
+     * El chat del Bro (v1.0.0): saluda al aparecer, avisa del anochecer/
+     * amanecer y delata a los creepers que se acercan sigilosamente.
+     */
+    private void updateChat() {
+        Player owner = this.level().getPlayerByUUID(this.ownerUUID);
+        if (owner == null || owner.isSpectator()) {
+            return;
+        }
+        // Solo chatea si esta en la misma dimension que su dueno
+        if (owner.level().dimension() != this.level().dimension()) {
+            return;
+        }
+
+        long now = this.level().getGameTime();
+
+        // 1) Saludo la primera vez que aparece en el mundo
+        if (!this.greeted) {
+            this.greeted = true;
+            this.wasNight = this.level().isNight();
+            this.chatManager.say(ChatManager.GREETINGS);
+        }
+
+        // 2) Avisa cuando anochece o amanece (una vez por cambio)
+        boolean isNight = this.level().isNight();
+        if (isNight != this.wasNight) {
+            this.wasNight = isNight;
+            if (isNight) {
+                this.chatManager.say(ChatManager.NIGHT_MESSAGES);
+            } else {
+                this.chatManager.say(ChatManager.DAY_MESSAGES);
+            }
+        }
+
+        // 3) Delata a los creepers que se acercan al dueno (una vez cada 60s,
+        //    escaneando solo cada 200 ticks para no gastar rendimiento)
+        if (--this.creeperScanTimer <= 0) {
+            this.creeperScanTimer = 200;
+            if (now - this.lastCreeperWarnAt > 1200) {
+                Creeper creeper = this.findNearbyCreeper(owner);
+                if (creeper != null) {
+                    this.lastCreeperWarnAt = now;
+                    this.chatManager.say(ChatManager.CREEPER_WARNINGS);
+                }
+            }
+        }
+    }
+
+    /** Busca un creeper peligrosamente cerca del dueno (radio 5 bloques) */
+    private Creeper findNearbyCreeper(Player owner) {
+        return this.level().getEntitiesOfClass(Creeper.class,
+                owner.getBoundingBox().inflate(5.0D)).stream()
+                .filter(c -> !c.isDeadOrDying() && c.isAlive())
+                .findFirst()
+                .orElse(null);
     }
 
     /** Busca comida en su inventario y se la come para recuperar hambre */
@@ -413,6 +498,10 @@ public class BroEntity extends PathfinderMob {
         tag.putInt("BroRequestedWood", this.requestedWood);
         tag.putInt("BroWoodCollected", this.woodCollected);
         tag.putLong("BroOrderStartedAt", this.orderStartedAt);
+        // Estado del chat
+        tag.putBoolean("BroGreeted", this.greeted);
+        tag.putBoolean("BroWasNight", this.wasNight);
+        tag.putLong("BroLastCreeperWarn", this.lastCreeperWarnAt);
     }
 
     /** Recupera quien es su dueno, su inventario y su hambre al cargar el mundo */
@@ -439,5 +528,9 @@ public class BroEntity extends PathfinderMob {
         this.requestedWood = tag.getInt("BroRequestedWood");
         this.woodCollected = tag.getInt("BroWoodCollected");
         this.orderStartedAt = tag.getLong("BroOrderStartedAt");
+        // Estado del chat
+        this.greeted = tag.getBoolean("BroGreeted");
+        this.wasNight = tag.getBoolean("BroWasNight");
+        this.lastCreeperWarnAt = tag.getLong("BroLastCreeperWarn");
     }
 }

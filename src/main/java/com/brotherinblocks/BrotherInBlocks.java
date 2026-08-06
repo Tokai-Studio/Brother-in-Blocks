@@ -4,6 +4,7 @@ import com.brotherinblocks.entity.BroEntity;
 import com.brotherinblocks.entity.BroModel;
 import com.brotherinblocks.entity.BroRenderer;
 import com.brotherinblocks.entity.ModEntities;
+import com.brotherinblocks.event.BroChatEvents;
 import com.brotherinblocks.event.BroChatHandler;
 import com.mojang.logging.LogUtils;
 import net.minecraft.server.level.ServerLevel;
@@ -31,7 +32,7 @@ import org.slf4j.Logger;
  *  - v0.3.0  El Bro te sigue a distancia prudente
  *  - v0.4.0  El Bro tala madera y pica piedra
  *  - v0.5.0  El Bro te defiende de los monstruos
- *  - v1.0.0  Chat basico + pulido (MVP completo)
+ *  - v1.0.0  Chat basico + pulido (MVP completo - ESTAMOS AQUI)
  */
 @Mod(BrotherInBlocks.MOD_ID)
 public class BrotherInBlocks {
@@ -55,6 +56,8 @@ public class BrotherInBlocks {
         MinecraftForge.EVENT_BUS.register(this);
         // Escucha el chat del jugador para responder al Bro
         MinecraftForge.EVENT_BUS.register(new BroChatHandler());
+        // El Bro reacciona a tus muertes y logros
+        MinecraftForge.EVENT_BUS.register(new BroChatEvents());
 
         LOGGER.info("=================================================");
         LOGGER.info("  Brother in Blocks ha despertado!");

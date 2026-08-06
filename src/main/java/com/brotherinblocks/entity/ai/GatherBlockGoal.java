@@ -208,6 +208,10 @@ public class GatherBlockGoal extends Goal {
                     state.getSoundType().getBreakSound(), SoundSource.BLOCKS, 1.0F, 0.9F);
             // Rompe el bloque con drops reales
             this.bro.level().destroyBlock(this.target, true, this.bro);
+            // A veces comenta que encontro recursos (v1.0.0, con anti-spam)
+            if (this.bro.getRandom().nextFloat() < 0.15F) {
+                this.bro.getChatManager().say(com.brotherinblocks.chat.ChatManager.FOUND_RESOURCES);
+            }
             this.miningProgress = 0;
             this.miningTicksNeeded = 0;
             this.target = null; // canContinueToUse buscara el siguiente

@@ -3,7 +3,7 @@
 > Tu amigo/primo virtual de Minecraft. Un compañero que juega contigo en
 > singleplayer como si fuera multijugador.
 
-**Versión:** 0.1.0 (esqueleto del mod) · **Minecraft:** 1.20.1 · **Loader:** Forge (47.4.22)
+**Versión:** 1.0.0 (MVP completo) · **Minecraft:** 1.20.1 · **Loader:** Forge (47.4.22)
 
 ## 🎯 ¿Qué es este proyecto?
 
@@ -16,12 +16,12 @@ que pasa en la partida.
 
 | Versión | Contenido | Detalle |
 |---------|-----------|---------|
-| **v0.1.0** | ✅ El mod carga y saluda (estamos aquí) | Esqueleto del mod |
-| **v0.2.0** | El Bro aparece en el mundo | Con skin de jugador, no se pierde |
+| **v0.1.0** | ✅ El mod carga y saluda | Esqueleto del mod |
+| **v0.2.0** | ✅ El Bro aparece en el mundo | Con skin de jugador, no se pierde |
 | **v0.3.0** | ✅ El Bro te sigue | Distancia prudente, espera cuando te paras |
-| **v0.4.0** | El Bro trabaja contigo | Tala madera, pica piedra, recoge botín, **sistema de hambre** (vida = 20 como el jugador) |
-| **v0.5.0** | El Bro te defiende | Prioriza a tu atacante, se retira con poca vida |
-| **v1.0.0** | El Bro te habla + pulido | Chat básico, config, pruebas finales |
+| **v0.4.0** | ✅ El Bro trabaja contigo | Tala madera, pica piedra, recoge botín, sistema de hambre |
+| **v0.5.0** | ✅ El Bro te defiende | Prioriza a tu atacante, se retira con poca vida |
+| **v1.0.0** | ✅ El Bro te habla + MVP completo | Saludo, reacciones a muerte/logros, avisos de noche y creeper, anti-spam |
 
 ### Después del MVP
 
