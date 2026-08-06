@@ -31,6 +31,10 @@ que pasa en la partida.
 | **v3.0.0** | Sistema de rasgos de personalidad (The Sims 3) |
 | ... | Puerto a NeoForge, luego a Fabric |
 
+> 🧠 **Estrategia de desarrollo:** usamos recursos open source verificados
+> (vanilla + patrones MIT primero, SmartBrainLib/GeckoLib cuando hagan falta).
+> Reglas y licencias en [`OPEN_SOURCE.md`](OPEN_SOURCE.md).
+
 ## 🗂️ Estructura del proyecto
 
 ```
@@ -40,6 +44,7 @@ build.gradle                         → configuración de Gradle/Forge
 gradle.properties                    → versión de Forge, nombre del mod, JDK
 dev.sh                               → script para compilar/jugar (usa disco Database)
 GUIA_PUBLICAR.md                     → guía para publicar el mod cuando esté listo
+OPEN_SOURCE.md                       → estrategia y reglas de licencias (qué podemos copiar)
 ```
 
 ## 💾 IMPORTANTE: por qué todo lo pesado está en el disco "Database"
