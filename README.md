@@ -33,7 +33,8 @@ que pasa en la partida.
 
 > 🧠 **Estrategia de desarrollo:** usamos recursos open source verificados
 > (vanilla + patrones MIT primero, SmartBrainLib/GeckoLib cuando hagan falta).
-> Reglas y licencias en [`OPEN_SOURCE.md`](OPEN_SOURCE.md).
+> Reglas y licencias en [`OPEN_SOURCE.md`](OPEN_SOURCE.md) y el plan
+> profesional completo en [`ARQUITECTURA.md`](ARQUITECTURA.md).
 
 ## 🗂️ Estructura del proyecto
 
@@ -45,6 +46,7 @@ gradle.properties                    → versión de Forge, nombre del mod, JDK
 dev.sh                               → script para compilar/jugar (usa disco Database)
 GUIA_PUBLICAR.md                     → guía para publicar el mod cuando esté listo
 OPEN_SOURCE.md                       → estrategia y reglas de licencias (qué podemos copiar)
+ARQUITECTURA.md                      → el plan profesional definitivo (IA Brain, roadmap maestro)
 ```
 
 ## 💾 IMPORTANTE: por qué todo lo pesado está en el disco "Database"
