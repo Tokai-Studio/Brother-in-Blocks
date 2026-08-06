@@ -49,6 +49,8 @@ public class GatherBlockGoal extends Goal {
     private final int searchRadius;
     /** Velocidad a la que camina hacia el bloque */
     private final double speedModifier;
+    /** true = este goal es para madera (respeta la orden del jugador) */
+    private final boolean isWoodGoal;
     /** El bloque que esta golpeando ahora mismo */
     private BlockPos target;
     /** Contador para no reescannear cada tick (rendimiento) */
@@ -58,11 +60,12 @@ public class GatherBlockGoal extends Goal {
     /** Ticks que faltan para romper el bloque actual */
     private int miningTicksNeeded = 0;
 
-    public GatherBlockGoal(BroEntity bro, Predicate<BlockState> blockFilter, int searchRadius, double speedModifier) {
+    public GatherBlockGoal(BroEntity bro, Predicate<BlockState> blockFilter, int searchRadius, double speedModifier, boolean isWoodGoal) {
         this.bro = bro;
         this.blockFilter = blockFilter;
         this.searchRadius = searchRadius;
         this.speedModifier = speedModifier;
+        this.isWoodGoal = isWoodGoal;
         this.setFlags(EnumSet.of(Goal.Flag.MOVE));
     }
 
@@ -71,6 +74,10 @@ public class GatherBlockGoal extends Goal {
     public boolean canUse() {
         Player owner = getOwner();
         if (owner == null || owner.isSpectator()) {
+            return false;
+        }
+        // El goal de madera SOLO trabaja si hay una orden del jugador activa
+        if (this.isWoodGoal && !this.bro.hasWoodOrder()) {
             return false;
         }
         // Con mucha hambre no trabaja (va a buscar comida)
@@ -100,6 +107,10 @@ public class GatherBlockGoal extends Goal {
      */
     @Override
     public boolean canContinueToUse() {
+        // Si la orden de madera ya se cumplio (o el jugador la cancelo), para
+        if (this.isWoodGoal && !this.bro.hasWoodOrder()) {
+            return false;
+        }
         Player owner = getOwner();
         if (owner == null) {
             return false;
@@ -218,7 +229,15 @@ public class GatherBlockGoal extends Goal {
         for (ItemEntity item : items) {
             ItemStack stack = item.getItem();
             if (isUsefulItem(stack)) {
+                int beforeCount = stack.getCount();
                 ItemStack leftover = this.bro.addToInventory(stack);
+                int collected = beforeCount - leftover.getCount();
+
+                // Si es madera y hay una orden activa, la cuenta para la orden
+                if (collected > 0 && this.isWoodGoal && this.bro.hasWoodOrder()) {
+                    this.bro.addWoodCollected(collected);
+                }
+
                 if (leftover.isEmpty()) {
                     item.discard(); // todo entro en la mochila
                 } else {

@@ -4,6 +4,7 @@ import com.brotherinblocks.entity.BroEntity;
 import com.brotherinblocks.entity.BroModel;
 import com.brotherinblocks.entity.BroRenderer;
 import com.brotherinblocks.entity.ModEntities;
+import com.brotherinblocks.event.BroChatHandler;
 import com.mojang.logging.LogUtils;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -52,9 +53,11 @@ public class BrotherInBlocks {
 
         // Eventos del juego
         MinecraftForge.EVENT_BUS.register(this);
+        // Escucha el chat del jugador para responder al Bro
+        MinecraftForge.EVENT_BUS.register(new BroChatHandler());
 
         LOGGER.info("=================================================");
-        LOGGER.info("  Brother in Blocks v0.2.0 ha despertado!");
+        LOGGER.info("  Brother in Blocks ha despertado!");
         LOGGER.info("  Tu bro va a aparecer en el mundo contigo. GG!");
         LOGGER.info("=================================================");
     }

@@ -2,6 +2,8 @@ package com.brotherinblocks.entity;
 
 import com.brotherinblocks.entity.ai.FollowBroGoal;
 import com.brotherinblocks.entity.ai.GatherBlockGoal;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
@@ -22,6 +24,7 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.network.NetworkHooks;
 
 import java.util.UUID;
@@ -58,6 +61,22 @@ public class BroEntity extends PathfinderMob {
     /** Contador para bajar el hambre cada cierto tiempo */
     private int hungerTimer = 0;
 
+    // ---- Sistema de peticiones al jugador (v0.4.2) ----
+    /** Estado: esperando respuesta del jugador en el chat */
+    private boolean waitingForAnswer = false;
+    /** Ticks de juego cuando puede volver a preguntar (tras un 'no') */
+    private long askAgainAt = 0;
+    /** Ticks de juego cuando caduca la espera de respuesta */
+    private long answerDeadline = 0;
+    /** Cuanta madera pidio el jugador (0 = sin orden) */
+    private int requestedWood = 0;
+    /** Madera recogida de la orden actual */
+    private int woodCollected = 0;
+    /** Contador para preguntar cada cierto tiempo */
+    private int askTimer = 0;
+    /** Ticks en los que empezo la orden actual (para cancelarla si se atasca) */
+    private long orderStartedAt = 0;
+
     public BroEntity(EntityType<? extends PathfinderMob> type, Level level) {
         super(type, level);
         // Nunca desaparece solo del mundo
@@ -86,18 +105,18 @@ public class BroEntity extends PathfinderMob {
         // Sigue al dueno: se queda a ~3 bloques (cerquita), y lo alcanza
         // si se aleja mas de 6 bloques (nada de timidez)
         this.goalSelector.addGoal(1, new FollowBroGoal(this, 1.0D, 3.0D, 6.0D));
-        // Trabaja: tala arboles cerca del dueno
+        // Trabaja: tala arboles SOLO cuando el jugador le da la orden
         this.goalSelector.addGoal(2, new GatherBlockGoal(
                 this,
                 (state) -> state.is(net.minecraft.tags.BlockTags.LOGS),
-                10, 1.0D));
-        // Trabaja: pica piedra si no hay arboles
+                10, 1.0D, true));
+        // Trabaja: pica piedra libremente (no molesta al jugador)
         this.goalSelector.addGoal(3, new GatherBlockGoal(
                 this,
                 (state) -> state.is(Blocks.STONE) || state.is(Blocks.COBBLESTONE)
                         || state.is(Blocks.DEEPSLATE) || state.is(Blocks.ANDESITE)
                         || state.is(Blocks.DIORITE) || state.is(Blocks.GRANITE),
-                10, 1.0D));
+                10, 1.0D, false));
         // Te mira cuando esta parado
         this.goalSelector.addGoal(4, new LookAtPlayerGoal(this, Player.class, 8.0F));
     }
@@ -127,6 +146,165 @@ public class BroEntity extends PathfinderMob {
         }
         ItemStack leftover = this.inventory.addItem(stack);
         return leftover;
+    }
+
+    // ================= SISTEMA DE PETICIONES AL JUGADOR =================
+
+    /** Devuelve true si el Bro esta esperando que el jugador responda en el chat */
+    public boolean isWaitingForAnswer() {
+        return this.waitingForAnswer;
+    }
+
+    /** Devuelve true si hay una orden de madera activa */
+    public boolean hasWoodOrder() {
+        return this.requestedWood > 0;
+    }
+
+    /** Cuanta madera se pidio */
+    public int getRequestedWood() {
+        return this.requestedWood;
+    }
+
+    /** Cuanta madera lleva recogida */
+    public int getWoodCollected() {
+        return this.woodCollected;
+    }
+
+    /** Suma madera recogida y comprueba si ya cumplio la orden */
+    public void addWoodCollected(int amount) {
+        this.woodCollected += amount;
+        if (this.requestedWood > 0 && this.woodCollected >= this.requestedWood) {
+            this.completeWoodOrder();
+        }
+    }
+
+    /** El jugador dijo que SI con una cantidad: arranca la orden */
+    public void startWoodOrder(int quantity) {
+        this.waitingForAnswer = false;
+        this.requestedWood = Math.max(1, quantity);
+        this.woodCollected = 0;
+        this.orderStartedAt = this.level().getGameTime();
+        this.sayToOwner(Component.literal("Va! Te busco " + this.requestedWood + " de madera, dame un momento.")
+                .withStyle(ChatFormatting.GREEN));
+    }
+
+    /** El jugador dijo que NO: no trabaja un rato y luego vuelve a preguntar */
+    public void refuseWoodOrder() {
+        this.waitingForAnswer = false;
+        // Vuelve a preguntar en 5 minutos (6000 ticks)
+        this.askAgainAt = this.level().getGameTime() + 6000;
+        this.sayToOwner(Component.literal("Ok, cuando quieras me avisas.")
+                .withStyle(ChatFormatting.GREEN));
+    }
+
+    /** Completo la orden: avisa al jugador y se toma un descanso */
+    private void completeWoodOrder() {
+        this.requestedWood = 0;
+        this.woodCollected = 0;
+        // Descansa 3 minutos antes de volver a preguntar (no molesta)
+        this.askAgainAt = this.level().getGameTime() + 3600;
+        this.sayToOwner(Component.literal("Listo bro! Te junte la madera, esta en mi mochila.")
+                .withStyle(ChatFormatting.GREEN));
+    }
+
+    /** El jugador no respondio a tiempo: cancela la pregunta */
+    private void timeoutAnswer() {
+        this.waitingForAnswer = false;
+        // Vuelve a preguntar en 2 minutos
+        this.askAgainAt = this.level().getGameTime() + 2400;
+    }
+
+    /** Envia un mensaje al dueno por el chat (como si lo escribiera el Bro) */
+    public void sayToOwner(Component message) {
+        if (this.ownerUUID == null) {
+            return;
+        }
+        Player owner = this.level().getPlayerByUUID(this.ownerUUID);
+        if (owner != null) {
+            // El nombre del Bro en el mensaje, como un jugador
+            Component chat = Component.literal("<" + this.getName().getString() + "> ")
+                    .withStyle(ChatFormatting.YELLOW)
+                    .append(message);
+            owner.displayClientMessage(chat, false);
+        }
+    }
+
+    /**
+     * Cada cierto tiempo, si hay madera cerca y no tenemos orden,
+     * preguntamos al jugador si quiere que talemos.
+     */
+    private void askForWood() {
+        long now = this.level().getGameTime();
+
+        // Si estamos esperando respuesta y se acabo el tiempo, cancelar
+        if (this.waitingForAnswer) {
+            if (now >= this.answerDeadline) {
+                this.timeoutAnswer();
+            }
+            return;
+        }
+
+        // Si hay una orden activa, comprobar que no este atascada
+        // (por ejemplo si no hay arboles: se cancela sola a los 2 minutos)
+        if (this.requestedWood > 0) {
+            if (now - this.orderStartedAt > 2400) {
+                this.requestedWood = 0;
+                this.woodCollected = 0;
+                this.askAgainAt = now + 2400; // vuelve a preguntar en 2 min
+                this.sayToOwner(Component.literal("Bro no encontro madera cerca, "
+                        + "te aviso cuando haya.")
+                        .withStyle(ChatFormatting.GREEN));
+            }
+            return;
+        }
+
+        // Si no toca preguntar aun, no hacer nada
+        if (now < this.askAgainAt) {
+            return;
+        }
+
+        Player owner = this.level().getPlayerByUUID(this.ownerUUID);
+        if (owner == null || owner.isSpectator()) {
+            return;
+        }
+        // Solo pregunta si esta en la MISMA dimension que el Bro
+        if (owner.level().dimension() != this.level().dimension()) {
+            return;
+        }
+
+        // Solo pregunta si hay madera cerca (para no molestar en el desierto)
+        if (!this.hasWoodNearby(owner)) {
+            return;
+        }
+
+        // Solo pregunta de dia y con hambre decente
+        if (this.level().isNight() || this.hunger < 6) {
+            return;
+        }
+
+        // Pregunta al jugador
+        this.waitingForAnswer = true;
+        this.answerDeadline = now + 1200; // 60 segundos para responder
+        this.sayToOwner(Component.literal("Ey bro, quieres que te busque madera? "
+                + "Responde \"si 8\" (con la cantidad) o \"no\".")
+                .withStyle(ChatFormatting.GREEN));
+    }
+
+    /** Comprueba si hay troncos de arbol cerca del dueno */
+    private boolean hasWoodNearby(Player owner) {
+        BlockPos center = owner.blockPosition();
+        int radius = 10;
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                for (int dy = -3; dy <= 8; dy++) {
+                    BlockState state = this.level().getBlockState(center.offset(dx, dy, dz));
+                    if (!state.isAir() && state.is(net.minecraft.tags.BlockTags.LOGS)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /** El jugador puede abrir el inventario del Bro con clic derecho */
@@ -165,6 +343,12 @@ public class BroEntity extends PathfinderMob {
                 if (this.hunger <= 12) {
                     this.tryEatFood();
                 }
+            }
+
+            // Sistema de peticiones: pregunta por madera cada ~8 segundos
+            if (++this.askTimer >= 160) {
+                this.askTimer = 0;
+                this.askForWood();
             }
 
             // No se pierde: si el dueno esta muy lejos (y en la MISMA dimension),
@@ -223,6 +407,12 @@ public class BroEntity extends PathfinderMob {
         }
         tag.put("BroInventory", list);
         tag.putInt("BroHunger", this.hunger);
+        tag.putBoolean("BroWaitingAnswer", this.waitingForAnswer);
+        tag.putLong("BroAskAgainAt", this.askAgainAt);
+        tag.putLong("BroAnswerDeadline", this.answerDeadline);
+        tag.putInt("BroRequestedWood", this.requestedWood);
+        tag.putInt("BroWoodCollected", this.woodCollected);
+        tag.putLong("BroOrderStartedAt", this.orderStartedAt);
     }
 
     /** Recupera quien es su dueno, su inventario y su hambre al cargar el mundo */
@@ -243,5 +433,11 @@ public class BroEntity extends PathfinderMob {
             }
         }
         this.hunger = tag.getInt("BroHunger");
+        this.waitingForAnswer = tag.getBoolean("BroWaitingAnswer");
+        this.askAgainAt = tag.getLong("BroAskAgainAt");
+        this.answerDeadline = tag.getLong("BroAnswerDeadline");
+        this.requestedWood = tag.getInt("BroRequestedWood");
+        this.woodCollected = tag.getInt("BroWoodCollected");
+        this.orderStartedAt = tag.getLong("BroOrderStartedAt");
     }
 }
