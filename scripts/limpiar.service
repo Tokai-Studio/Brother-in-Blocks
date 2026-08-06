@@ -1,0 +1,9 @@
+[Unit]
+Description=Limpieza automatica de usuario - Brother in Blocks
+
+[Service]
+Type=oneshot
+ExecStart=/home/angel/limpiar.sh
+
+[Install]
+WantedBy=default.target
