@@ -18,8 +18,8 @@ que pasa en la partida.
 |---------|-----------|---------|
 | **v0.1.0** | ✅ El mod carga y saluda (estamos aquí) | Esqueleto del mod |
 | **v0.2.0** | El Bro aparece en el mundo | Con skin de jugador, no se pierde |
-| **v0.3.0** | El Bro te sigue | Distancia prudente, espera cuando te paras |
-| **v0.4.0** | El Bro trabaja contigo | Tala madera, pica piedra, recoge botín |
+| **v0.3.0** | ✅ El Bro te sigue | Distancia prudente, espera cuando te paras |
+| **v0.4.0** | El Bro trabaja contigo | Tala madera, pica piedra, recoge botín, **sistema de hambre** (vida = 20 como el jugador) |
 | **v0.5.0** | El Bro te defiende | Prioriza a tu atacante, se retira con poca vida |
 | **v1.0.0** | El Bro te habla + pulido | Chat básico, config, pruebas finales |
 

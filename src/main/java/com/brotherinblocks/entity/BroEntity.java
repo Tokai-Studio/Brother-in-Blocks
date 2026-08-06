@@ -1,5 +1,6 @@
 package com.brotherinblocks.entity;
 
+import com.brotherinblocks.entity.ai.FollowBroGoal;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.damagesource.DamageSource;
@@ -8,6 +9,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 
@@ -44,9 +46,25 @@ public class BroEntity extends PathfinderMob {
     /** Atributos de la entidad: vida, velocidad, dano (se registran en EntityAttributeCreationEvent) */
     public static AttributeSupplier.Builder createAttributes() {
         return Mob.createMobAttributes()
-                .add(Attributes.MAX_HEALTH, 40.0D)
-                .add(Attributes.MOVEMENT_SPEED, 0.3D)
+                // 20 de vida = 10 corazones, igual que el jugador
+                .add(Attributes.MAX_HEALTH, 20.0D)
+                // Velocidad un poco menor que la del jugador corriendo, para
+                // que camine a su ritmo y no se le pegue
+                .add(Attributes.MOVEMENT_SPEED, 0.25D)
                 .add(Attributes.ATTACK_DAMAGE, 4.0D);
+    }
+
+    /**
+     * Los comportamientos (goals) del Bro.
+     * v0.3.0: te sigue manteniendo distancia prudente y te mira.
+     */
+    @Override
+    protected void registerGoals() {
+        // Sigue al dueno: camina si esta a mas de 8 bloques, se detiene a los 4
+        // (distancia prudente ~3-6 bloques, como en el diseno del MVP)
+        this.goalSelector.addGoal(1, new FollowBroGoal(this, 0.8D, 4.0D, 8.0D));
+        // Te mira cuando esta parado
+        this.goalSelector.addGoal(2, new LookAtPlayerGoal(this, Player.class, 8.0F));
     }
 
     /** Le decimos quien es su dueno al generarlo */
