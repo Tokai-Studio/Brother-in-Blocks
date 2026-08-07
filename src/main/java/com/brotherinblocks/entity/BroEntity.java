@@ -1,9 +1,10 @@
 package com.brotherinblocks.entity;
 
+import com.brotherinblocks.chains.FollowChain;
 import com.brotherinblocks.chat.ChatManager;
 import com.brotherinblocks.entity.ai.DefendBroGoal;
-import com.brotherinblocks.entity.ai.FollowBroGoal;
 import com.brotherinblocks.entity.ai.GatherBlockGoal;
+import com.brotherinblocks.tasksystem.TaskRunner;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -95,6 +96,10 @@ public class BroEntity extends PathfinderMob {
     /** Contador para no escanear creepers cada tick (rendimiento) */
     private int creeperScanTimer = 0;
 
+    // ---- Sistema de tareas (v2.0.2) ----
+    /** El cerebro del Bro: decide cada tick que deseo ejecutar */
+    private final TaskRunner taskRunner;
+
     public BroEntity(EntityType<? extends PathfinderMob> type, Level level) {
         super(type, level);
         // Nunca desaparece solo del mundo
@@ -102,6 +107,12 @@ public class BroEntity extends PathfinderMob {
         // Su nombre visible sobre la cabeza
         this.setCustomName(Component.literal("Bro"));
         this.setCustomNameVisible(true);
+
+        // Crea el cerebro (v2.0.2): el TaskRunner con sus cadenas.
+        // Cada cadena se registra sola al construirse.
+        this.taskRunner = new TaskRunner(this);
+        this.taskRunner.enable();
+        new FollowChain(this.taskRunner);
     }
 
     /** Atributos de la entidad: vida, velocidad, dano (se registran en EntityAttributeCreationEvent) */
@@ -122,9 +133,6 @@ public class BroEntity extends PathfinderMob {
     protected void registerGoals() {
         // Prioridad 0: te defiende de los monstruos (lo mas importante)
         this.goalSelector.addGoal(0, new DefendBroGoal(this));
-        // Sigue al dueno: se queda a ~3 bloques (cerquita), y lo alcanza
-        // si se aleja mas de 6 bloques (nada de timidez)
-        this.goalSelector.addGoal(1, new FollowBroGoal(this, 1.0D, 3.0D, 6.0D));
         // Trabaja: tala arboles SOLO cuando el jugador le da la orden
         this.goalSelector.addGoal(2, new GatherBlockGoal(
                 this,
@@ -353,6 +361,9 @@ public class BroEntity extends PathfinderMob {
 
         // Todo el estado que toca el mundo se maneja SOLO en el servidor
         if (!this.level().isClientSide) {
+            // El cerebro decide que deseo ejecutar (v2.0.2: seguir)
+            this.taskRunner.tick();
+
             // No se ahoga: si esta en agua, mantiene el aire lleno
             if (this.isInWater()) {
                 this.setAirSupply(this.getMaxAirSupply());
