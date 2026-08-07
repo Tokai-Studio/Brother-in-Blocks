@@ -65,6 +65,7 @@ decisiones** (para la v2.0), y para eso hay recursos listos.
 
 | Recurso | Repo (GitHub) | Licencia | Por qué NO |
 |---------|---------------|----------|------------|
+| **ChatClef** (copiloto IA) | `elefant-ai/chatclef` | **AGPL-3.0** | La licencia **más estricta** que existe: ni siquiera permite usarlo en un servicio sin publicar TODO como AGPL. Solo LECTURA de arquitectura (sistema de tareas por cadenas). Clonado en `/media/angel/Database/chatclef` |
 | **MCA (Comes Alive)** | `WildBamaBoy/minecraft-comes-alive` | **GPL-3.0** | Código "contagioso": obligaría a publicar todo el mod como GPL |
 | **Minecolonies** | `ldtteam/minecolonies` | **GPL-3.0** | Ídem |
 | **HumanCompanions** | `justinwon777/HumanCompanions` | **GPL-3.0** | Ídem (es el mod más parecido al nuestro, pero no se puede copiar) |
