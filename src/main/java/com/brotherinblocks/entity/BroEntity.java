@@ -2,8 +2,6 @@ package com.brotherinblocks.entity;
 
 import com.brotherinblocks.chains.FollowChain;
 import com.brotherinblocks.chat.ChatManager;
-import com.brotherinblocks.entity.ai.DefendBroGoal;
-import com.brotherinblocks.entity.ai.GatherBlockGoal;
 import com.brotherinblocks.tasksystem.TaskRunner;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -20,14 +18,12 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.entity.monster.Creeper;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.network.NetworkHooks;
 
@@ -127,26 +123,16 @@ public class BroEntity extends PathfinderMob {
     }
 
     /**
-     * Los comportamientos (goals) del Bro.
+     * Comportamientos del Bro (v2.0+):
+     * TODO el comportamiento lo decide el TaskRunner (sistema de tareas).
+     * El goalSelector de vanilla queda VACIO a proposito: los goals viejos
+     * del MVP (defensa, madera, piedra) peleaban con el sistema nuevo por
+     * el control del movimiento. Cada uno se migra a una cadena del
+     * TaskRunner en su propia version.
      */
     @Override
     protected void registerGoals() {
-        // Prioridad 0: te defiende de los monstruos (lo mas importante)
-        this.goalSelector.addGoal(0, new DefendBroGoal(this));
-        // Trabaja: tala arboles SOLO cuando el jugador le da la orden
-        this.goalSelector.addGoal(2, new GatherBlockGoal(
-                this,
-                (state) -> state.is(net.minecraft.tags.BlockTags.LOGS),
-                10, 1.0D, true));
-        // Trabaja: pica piedra libremente (no molesta al jugador)
-        this.goalSelector.addGoal(3, new GatherBlockGoal(
-                this,
-                (state) -> state.is(Blocks.STONE) || state.is(Blocks.COBBLESTONE)
-                        || state.is(Blocks.DEEPSLATE) || state.is(Blocks.ANDESITE)
-                        || state.is(Blocks.DIORITE) || state.is(Blocks.GRANITE),
-                10, 1.0D, false));
-        // Te mira cuando esta parado
-        this.goalSelector.addGoal(4, new LookAtPlayerGoal(this, Player.class, 8.0F));
+        // Intencionalmente vacio: el cerebro es el TaskRunner.
     }
 
     /** Le decimos quien es su dueno al generarlo */

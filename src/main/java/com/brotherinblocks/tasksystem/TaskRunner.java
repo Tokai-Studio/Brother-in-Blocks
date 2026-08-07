@@ -69,6 +69,9 @@ public class TaskRunner {
         // Si cambiamos de cadena, avisamos a la anterior para que se detenga
         if (cachedCurrentTaskChain != null && maxChain != cachedCurrentTaskChain) {
             cachedCurrentTaskChain.onInterrupt(maxChain);
+            Debug.logInternal("El cerebro cambio de deseo: "
+                    + cachedCurrentTaskChain.getName() + " -> "
+                    + (maxChain != null ? maxChain.getName() : "nada"));
         }
         cachedCurrentTaskChain = maxChain;
 

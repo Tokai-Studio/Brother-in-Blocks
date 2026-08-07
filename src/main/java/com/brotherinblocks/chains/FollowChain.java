@@ -25,6 +25,9 @@ public class FollowChain extends SingleTaskChain {
     /** Distancia maxima: si el dueno esta mas lejos, queremos seguirlo */
     private static final double MAX_DISTANCE = 6.0D;
 
+    /** Ultima prioridad calculada (para no recalcularla dos veces por tick) */
+    private float cachedLastPriority = Float.NEGATIVE_INFINITY;
+
     public FollowChain(TaskRunner runner) {
         super(runner);
     }
@@ -40,6 +43,16 @@ public class FollowChain extends SingleTaskChain {
 
     @Override
     public float getPriority() {
+        cachedLastPriority = getPriorityInner();
+        // Si no hay tarea que ejecutar, no competimos por el tick
+        if (getCurrentTask() == null && cachedLastPriority > 0) {
+            cachedLastPriority = 0;
+        }
+        return cachedLastPriority;
+    }
+
+    /** Calcula la prioridad real del deseo de seguir */
+    private float getPriorityInner() {
         Player owner = getOwner();
         if (owner == null || owner.isSpectator()) {
             return Float.NEGATIVE_INFINITY;
@@ -59,7 +72,7 @@ public class FollowChain extends SingleTaskChain {
     @Override
     protected void onTick() {
         // Si no hay deseo de seguir (dueno cerca), no hacemos nada
-        if (getPriority() == Float.NEGATIVE_INFINITY) {
+        if (cachedLastPriority == Float.NEGATIVE_INFINITY) {
             return;
         }
         // Nos aseguramos de tener la tarea de seguir lista
